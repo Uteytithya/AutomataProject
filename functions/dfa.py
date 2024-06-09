@@ -26,4 +26,4 @@ DFA0 = DFA({0,1,2},
             {0,1})
 print(DFA0.run("ba"))
 
-# print(repr(DFA0))
+print(repr(DFA0))
