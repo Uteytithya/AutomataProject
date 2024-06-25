@@ -1,4 +1,8 @@
-import functions.dfa as dfa
-import functions.nfa as nfa
+import functions.fa as fa
 import database.database as db
-import dataStructure.graph as graph
+import dataStructure.state as state
+
+def main():
+    pass
+if __name__ == "__main__":
+    main()
