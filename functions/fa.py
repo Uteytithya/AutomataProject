@@ -28,24 +28,13 @@ class FA:
                 else:
                     seenTransitions.add((q, x))
         return True
-
-    def testString(self, word):
-        if self.type == "DFA":
-            q = self.q0
-            while word != "":
-                if (q, word[0]) not in self.delta:
-                    return False
-                q = self.delta[(q, word[0])]
-                word = word[1:]  # performing string slicing accepting index from 1 to the last index
-            return q in self.F
-        else:
-            raise ValueError("testString method is only applicable for DFA")
     
+    # Epsilon Closure functions using for converting NFA to DFA
     def epsilonClosures(self, state):
         if self.type != "NFA":
             raise ValueError("epsilonClosures method is only applicable for NFA")
 
-        closure = set()
+        closure = set() 
         unprocessedStates = [state]
         while unprocessedStates:
             current = unprocessedStates.pop()
@@ -155,6 +144,34 @@ class FA:
 
         return FA(new_states, self.X, new_delta, new_start_state, new_final_states)
     
+    def complement(self):
+        if self.type != "DFA":
+            raise ValueError("complement method is only applicable for DFA")
+
+        new_final_states = self.Q - self.F
+        return FA(self.Q, self.X, self.delta, self.q0, new_final_states)
+    
+    def testString(self, word):
+        if self.type == "DFA":
+            q = self.q0
+            while word != "":
+                if (q, word[0]) not in self.delta:
+                    return False
+                q = self.delta[(q, word[0])]
+                word = word[1:]  # performing string slicing accepting index from 1 to the last index
+            return q in self.F
+        else:
+            raise ValueError("testString method is only applicable for DFA")
+
+
+    def union(self):
+        pass
+
+    def intersection(self):
+        pass
+    def wordGenerator(self, length):
+        pass
+    # Make it into a table
     def __repr__(self):
         states_str = ", ".join(str(state) for state in self.Q)
         transitions_str = ", ".join(f"{key[0]}, {key[1]} -> {value}" for key, value in self.delta.items())
