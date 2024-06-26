@@ -10,6 +10,3 @@ class Transition:
         self.to = to
     def __repr__(self):
         return f"{self.symbol} -> {self.to}"
-
-# q0 = State(0, [Transition("a", 1), Transition("b", 0)])
-# # print(q0)

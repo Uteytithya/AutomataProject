@@ -96,7 +96,64 @@ class FA:
         return FA(dfa_states, self.X, dfa_delta, dfa_start_state, dfa_accept_states)
 
     def minimize(self):
-        pass
+        if self.type != "DFA":
+            raise ValueError("minimize method is only applicable for DFA")
+
+        # Step 1: Split the states into two groups: final and non-final
+        final_states = set()
+        non_final_states = set()
+        for state in self.Q:
+            if state in self.F:
+                final_states.add(state)
+            else:
+                non_final_states.add(state)
+
+        # Step 2: Split the states into groups based on distinguishability
+        distinguishable = True
+        while distinguishable:
+            distinguishable = False
+            new_groups = []
+            for group in [final_states, non_final_states]:
+                if len(group) == 1:
+                    new_groups.append(group)
+                    continue
+
+                new_group = set()
+                for state in group:
+                    if len(new_group) == 0:
+                        new_group.add(state)
+                    else:
+                        for existing_state in new_group:
+                            if self.areStatesDistinguishable(state, existing_state, final_states, non_final_states):
+                                distinguishable = True
+                                new_groups.append({state})
+                                break
+                        else:
+                            new_group.add(state)
+                new_groups.append(new_group)
+
+            final_states = new_groups[0]
+            non_final_states = new_groups[1]
+
+        # Step 3: Create the new DFA
+        new_states = final_states.union(non_final_states)
+        new_delta = {}
+        for state in new_states:
+            for symbol in self.X:
+                new_delta[(state, symbol)] = self.delta[(state, symbol)]
+
+        new_start_state = None
+        for state in new_states:
+            if self.q0 in state:
+                new_start_state = state
+                break
+
+        new_final_states = set()
+        for state in new_states:
+            if state & self.F:
+                new_final_states.add(state)
+
+        return FA(new_states, self.X, new_delta, new_start_state, new_final_states)
     
     def __repr__(self):
         states_str = ", ".join(str(state) for state in self.Q)
