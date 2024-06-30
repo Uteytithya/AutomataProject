@@ -162,23 +162,77 @@ class FA:
             return q in self.F
         else:
             raise ValueError("testString method is only applicable for DFA")
-
-
-    def union(self):
-        pass
-
-    def intersection(self):
-        pass
+            
+    def union(self, fa2):
+        # Union of two FA
+        if self.X != fa2.X:
+            raise ValueError("Alphabets of the two FAs are not the same")
+        new_states = self.Q.union(fa2.Q)
+        new_delta = self.delta.copy()
+        new_delta.update(fa2.delta)
+        new_start_state = state("q0")
+        new_final_states = self.F.union(fa2.F)
+        return FA(new_states, self.X, new_delta, new_start_state, new_final_states)
+    
+    def intersection(self, fa2):
+        # Intersection of two FA
+        if self.X != fa2.X:
+            raise ValueError("Alphabets of the two FAs are not the same")
+        new_states = self.Q.intersection(fa2.Q)
+        new_delta = {key: value for key, value in self.delta.items() if key in new_states}
+        new_delta.update({key: value for key, value in fa2.delta.items() if key in new_states})
+        new_start_state = state("q0")
+        new_final_states = self.F.intersection(fa2.F)
+        return FA(new_states, self.X, new_delta, new_start_state, new_final_states)
+    
     def wordGenerator(self, length):
-        pass
-    # Make it into a table
+        if self.type == "DFA":
+            def generateWords(length, currentWord, currentState):
+                if length == 0:
+                    if currentState in self.F:
+                        return [currentWord]
+                    else:
+                        return []
+                words = []
+                for symbol in self.X:
+                    if (currentState, symbol) in self.delta:
+                        nextState = self.delta[(currentState, symbol)]
+                        words.extend(generateWords(length - 1, currentWord + symbol, nextState))
+                return words
+
+            return generateWords(length, "", self.q0)
+        else:
+            raise ValueError("wordGenerator method is only applicable for DFA")
+    
+    # Make it into a table    
     def __repr__(self):
-        states_str = ", ".join(str(state) for state in self.Q)
-        transitions_str = ", ".join(f"{key[0]}, {key[1]} -> {value}" for key, value in self.delta.items())
-        final_states_str = ", ".join(str(state) for state in self.F)
-        return (f"FA:\n- State Set: ({states_str})\n"
-                f"- Alphabet: ({', '.join(self.X)})\n"
-                f"- Transition function: ({transitions_str})\n"
-                f"- Start State: ({self.q0})\n"
-                f"- Final State: ({final_states_str})\n"
-                f"- FA Type: {self.type}")
+        # Determine the width of the columns
+        max_state_len = max(len(str(state)) for state in self.Q)
+        max_symbol_len = max(len(symbol) for symbol in self.X)
+        cell_width = max(max_state_len, max_symbol_len) + 2
+        
+        # Create the header row
+        header = " " * (cell_width + 1) + " | ".join(f"{symbol:^{cell_width}}" for symbol in self.X)
+        
+        # Sort the states for orderly output
+        sorted_states = sorted(self.Q, key=lambda s: str(s))
+
+        # Create the rows for the state transitions
+        rows = []
+        for state in sorted_states:
+            if state == self.q0:
+                state_indicator = "→"
+            elif state in self.F:
+                state_indicator = "*"
+            else:
+                state_indicator = " "
+            row = f"{state_indicator} {state:^{cell_width}}"
+            for symbol in self.X:
+                next_state = self.delta.get((state, symbol), "-")
+                row += f" | {next_state:^{cell_width}}"
+            rows.append(row)
+        
+        # Join the header and rows
+        table = header + "\n" + "\n".join(rows)
+        
+        return f"Transition Table:\n{table}\nFA Type: {self.type}"
