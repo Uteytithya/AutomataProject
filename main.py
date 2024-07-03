@@ -19,6 +19,7 @@ def main():
     FA1 = fa.FA(Q, X, delta, q0, F)
     
     print(FA1.isDFA())
+    print(FA1.minimize)
     # print(FA1.wordGenerator(5))
     print(FA1.testString('ab'))
     print(FA1)  
@@ -36,7 +37,8 @@ def main():
     F = {'q0'}
 
     FA2 = fa.FA(Q, X, delta, q0, F)
-    DFA2 = FA2.convertNFAtoDFA()
+
+    # DFA2 = FA2.convertNFAtoDFA()
     print(DFA2.isDFA())
     print(DFA2)
 
