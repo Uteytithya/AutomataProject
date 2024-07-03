@@ -10,6 +10,7 @@ class FA:
         self.q0 = q0
         self.F = F
         self.type = None
+<<<<<<< HEAD
         # Check condition if FA is DFA or NFA
         if self.isDFA():
             self.type = "DFA"
@@ -27,6 +28,14 @@ class FA:
         if count != 1:
             return False
         # Check if the transition function is total
+=======
+        if self.isDFA():
+            self.type = "DFA"
+        else:
+            self.type = "NFA"
+
+    def isDFA(self):
+>>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
         seenTransitions = set()
         for q in self.Q:
             for x in self.X:
@@ -54,7 +63,11 @@ class FA:
                 for q in self.delta[(current, "")]:
                     if q not in closure:
                         unprocessedStates.append(q)
+<<<<<<< HEAD
         return closure
+=======
+        return frozenset(closure)
+>>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
 
     def convertNFAtoDFA(self):
         if self.type != "NFA":
@@ -86,12 +99,20 @@ class FA:
                         for target in self.delta[(state, symbol)]:
                             new_state.update(self.epsilonClosures(target))
                 
+<<<<<<< HEAD
                 new_state = new_state
+=======
+                new_state = frozenset(new_state)
+>>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
                 if new_state not in dfa_states:
                     dfa_states.add(new_state)
                     unprocessed_states.append(new_state)
                 
+<<<<<<< HEAD
                 dfa_delta[(tuple(current), symbol)] = new_state
+=======
+                dfa_delta[(current, symbol)] = new_state
+>>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
 
         return FA(dfa_states, self.X, dfa_delta, dfa_start_state, dfa_accept_states)
 
@@ -99,6 +120,7 @@ class FA:
         if self.type != "DFA":
             raise ValueError("minimize method is only applicable for DFA")
 
+<<<<<<< HEAD
         # Step 1: Initialize the partitions
         P = {self.F, self.Q - self.F}
         W = {self.F} if len(self.F) < len(self.Q - self.F) else {self.Q - self.F}
@@ -148,6 +170,61 @@ class FA:
 
         new_start_state = next(s for s in new_states if self.q0 in s)
         new_final_states = {state for state in new_states if set(state) & self.F}
+=======
+        # Step 1: Split the states into two groups: final and non-final
+        final_states = set()
+        non_final_states = set()
+        for state in self.Q:
+            if state in self.F:
+                final_states.add(state)
+            else:
+                non_final_states.add(state)
+
+        # Step 2: Split the states into groups based on distinguishability
+        distinguishable = True
+        while distinguishable:
+            distinguishable = False
+            new_groups = []
+            for group in [final_states, non_final_states]:
+                if len(group) == 1:
+                    new_groups.append(group)
+                    continue
+
+                new_group = set()
+                for state in group:
+                    if len(new_group) == 0:
+                        new_group.add(state)
+                    else:
+                        for existing_state in new_group:
+                            if self.areStatesDistinguishable(state, existing_state, final_states, non_final_states):
+                                distinguishable = True
+                                new_groups.append({state})
+                                break
+                        else:
+                            new_group.add(state)
+                new_groups.append(new_group)
+
+            final_states = new_groups[0]
+            non_final_states = new_groups[1]
+
+        # Step 3: Create the new DFA
+        new_states = final_states.union(non_final_states)
+        new_delta = {}
+        for state in new_states:
+            for symbol in self.X:
+                new_delta[(state, symbol)] = self.delta[(state, symbol)]
+
+        new_start_state = None
+        for state in new_states:
+            if self.q0 in state:
+                new_start_state = state
+                break
+
+        new_final_states = set()
+        for state in new_states:
+            if state & self.F:
+                new_final_states.add(state)
+>>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
 
         return FA(new_states, self.X, new_delta, new_start_state, new_final_states)
     
@@ -169,6 +246,7 @@ class FA:
             return q in self.F
         else:
             raise ValueError("testString method is only applicable for DFA")
+<<<<<<< HEAD
             
     def union(self, fa2):
         # Union of two FA
@@ -243,3 +321,25 @@ class FA:
         table = header + "\n" + "\n".join(rows)
         
         return f"Transition Table:\n{table}\nFA Type: {self.type}"
+=======
+
+
+    def union(self):
+        pass
+
+    def intersection(self):
+        pass
+    def wordGenerator(self, length):
+        pass
+    # Make it into a table
+    def __repr__(self):
+        states_str = ", ".join(str(state) for state in self.Q)
+        transitions_str = ", ".join(f"{key[0]}, {key[1]} -> {value}" for key, value in self.delta.items())
+        final_states_str = ", ".join(str(state) for state in self.F)
+        return (f"FA:\n- State Set: ({states_str})\n"
+                f"- Alphabet: ({', '.join(self.X)})\n"
+                f"- Transition function: ({transitions_str})\n"
+                f"- Start State: ({self.q0})\n"
+                f"- Final State: ({final_states_str})\n"
+                f"- FA Type: {self.type}")
+>>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
