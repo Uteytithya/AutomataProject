@@ -38,9 +38,9 @@ def main():
 
     FA2 = fa.FA(Q, X, delta, q0, F)
 
-    # DFA2 = FA2.convertNFAtoDFA()
-    print(DFA2.isDFA())
-    print(DFA2)
+    # # DFA2 = FA2.convertNFAtoDFA()
+    # print(DFA2.isDFA())
+    # print(DFA2)
 
 
 
