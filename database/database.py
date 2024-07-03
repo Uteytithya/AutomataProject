@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import mysql.connector as con
 import mysql.connector.errors as Error
 class database:
@@ -19,11 +18,6 @@ class database:
         cursor.close()
         print("State inserted successfully")
     
-=======
-class database:
-    def __init__(self):
-        pass
->>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
     def insertFA(self, Q, X, delta, q0, F, type, description):
         pass
     def getAllFA(self):
@@ -35,9 +29,4 @@ class database:
     def updateFA(self, id, Q, X, delta, q0, F, type, description):
         pass
     
-<<<<<<< HEAD
-db = database()
-db.insertState("q1")
-=======
     
->>>>>>> 456b934c616ddd1be017a12bfde8e7e457c9e870
