@@ -19,8 +19,11 @@ class FA:
         for (start, symbol, end) in delta_list:
             start = frozenset(start) if isinstance(start, list) else start
             end = frozenset(end) if isinstance(end, list) else end
-            delta_dict[(start, symbol)] = end
+            if (start, symbol) not in delta_dict:
+                delta_dict[(start, symbol)] = set()
+            delta_dict[(start, symbol)].add(end)
         return delta_dict
+
 
     def state_to_string(self, state):
         if isinstance(state, (frozenset, set, list, tuple)):
@@ -44,7 +47,7 @@ class FA:
         return True
 
     def epsilonClosures(self, states):
-        closure = set(states)
+        closure = states
         stack = list(states)
 
         while stack:
@@ -60,7 +63,8 @@ class FA:
         if self.type != "NFA":
             raise ValueError("convertNFAtoDFA method is only applicable for NFA")
 
-        initial_closure = self.epsilonClosures({self.q0})
+
+        initial_closure = self.epsilonClosures(self.q0)
         initial_state = frozenset(initial_closure)
 
         dfa_states = {initial_state}
@@ -92,109 +96,166 @@ class FA:
 
                 dfa_delta[(current, symbol)] = new_state
 
-        dfa_states_list = list(dfa_states)
-        dfa_delta_list = [((state,), symbol, (target,)) for (state, symbol), target in dfa_delta.items()]
-        dfa_accept_states_list = list(dfa_accept_states)
+        # Convert states and transitions to the input format
+        dfa_states_list = [self.state_to_string(state) for state in dfa_states]
+        dfa_states_list.sort()
+        print("DFA States List:", dfa_states_list)
+        
+        dfa_delta_list = [(self.state_to_string(state), symbol, self.state_to_string(target)) for (state, symbol), target in dfa_delta.items()]
+        print("DFA Delta List:", dfa_delta_list)
+        
+        dfa_accept_states_list = [self.state_to_string(state) for state in dfa_accept_states]
+        print("DFA Accept States List:", dfa_accept_states_list)
+        
+        dfa_start_state_str = self.state_to_string(dfa_start_state)
+        print("DFA Start State:", dfa_start_state_str)
 
-        dfa_fa = FA(dfa_states_list, self.X, dfa_delta_list, dfa_start_state, dfa_accept_states_list)
-        return dfa_fa
+        return dfa_states_list, self.X, dfa_delta_list, dfa_start_state_str, dfa_accept_states_list
+
+
 
     def minimize(self):
-        P = {frozenset(self.F), frozenset(self.Q - self.F)}
-        W = [frozenset(self.F)] if len(frozenset(self.F)) <= len(frozenset(self.Q - self.F)) else [frozenset(self.Q - self.F)]
+        if self.type != "DFA":
+            raise ValueError("minimize method is only applicable for DFA")
 
+        # Step 1: Initialize partitions
+        P = [set(self.F), set(self.Q) - set(self.F)]
+        W = [set(self.F), set(self.Q) - set(self.F)]
+        
         while W:
             A = W.pop()
             for c in self.X:
-                X = frozenset({q for q in self.Q if (q, c) in self.delta and self.delta[(q, c)] in A})
-                new_P = set()
+                X = {q for q in self.Q if (q, c) in self.delta and self.delta[(q, c)] in A}
+                new_P = []
                 for Y in P:
                     intersection = X & Y
                     difference = Y - X
                     if intersection and difference:
-                        new_P.add(intersection)
-                        new_P.add(difference)
+                        new_P.extend([intersection, difference])
                         if Y in W:
                             W.remove(Y)
-                            W.append(intersection)
-                            W.append(difference)
+                            W.extend([intersection, difference])
                         else:
-                            if len(intersection) <= len(difference):
-                                W.append(intersection)
-                            else:
-                                W.append(difference)
+                            W.append(intersection if len(intersection) <= len(difference) else difference)
                     else:
-                        new_P.add(Y)
+                        new_P.append(Y)
                 P = new_P
-
-        # Create new state names with old states included
-        new_states = {state: f"S{index}({','.join(map(str, state))})" for index, state in enumerate(P)}
-        state_mapping = {q: new_states[state] for state in new_states for q in state}
-
-        # Create new delta function
+        print(P)
+        print(W)
+        # Step 2: Create the new states
+        state_mapping = {q: i for i, partition in enumerate(P) for q in partition}
+        new_states = {i: partition for i, partition in enumerate(P)}
+        new_F = {state_mapping[state] for state in self.F}
+        new_q0 = state_mapping[self.q0]
+        
+        
+        # Step 3: Create the new delta function
         new_delta = {}
-        for (start, symbol), end in self.delta.items():
-            new_start = state_mapping[start]
-            new_end = state_mapping[end]
-            new_delta[(new_start, symbol)] = new_end
+        for (q, c), p in self.delta.items():
+            new_delta[(state_mapping[q], c)] = state_mapping[p]
 
-        # Update initial state and final states
-        new_q0 = state_mapping[self.q0] if self.q0 in state_mapping else None
-        new_F = {state_mapping[f] for f in self.F if f in state_mapping}
+        # Convert to input format
+        new_states_list = [self.state_to_string(state) for state in new_states.values()]
+        new_states_list.sort()
+        print("Minimized States List:", new_states_list)
 
-        # Update DFA components
-        self.Q = set(new_states.values())
-        self.delta = new_delta
-        self.q0 = new_q0
-        self.F = new_F
+        new_delta_list = [(self.state_to_string(start), symbol, self.state_to_string(end)) for (start, symbol), end in new_delta.items()]
+        print("Minimized Delta List:", new_delta_list)
+        
+        new_accept_states_list = [self.state_to_string(state) for state in new_F]
+        print("Minimized Accept States List:", new_accept_states_list)
+
+        new_start_state_str = self.state_to_string(new_q0)
+        print("Minimized Start State:", new_start_state_str)
+
+        return new_states_list, self.X, new_delta_list, new_start_state_str, new_accept_states_list
+
 
     def complement(self):
         if self.type != "DFA":
             raise ValueError("complement method is only applicable for DFA")
 
-        new_final_states = self.Q - self.F
-        return FA(self.Q, self.X, self.delta, self.q0, new_final_states)
+        self.F = self.Q - self.F
+        return self
 
     def testString(self, word):
         if self.type == "DFA":
-            q = self.q0
+            for i in self.q0:
+                current_state = i
+                  # Corrected start state initialization
+            print(f"Initial state: {current_state}")
             for symbol in word:
-                if (q, symbol) not in self.delta:
+                print(f"Processing symbol: {symbol}")
+                if (current_state, symbol) in self.delta:
+                    next_state = self.delta[(current_state, symbol)]
+                    print(f"Transition: {current_state} --{symbol}--> {next_state}")
+                    current_state = next_state
+                else:
+                    print(f"No transition found for {current_state} with symbol {symbol}. String rejected.")
                     return False
-                q = self.delta[(q, symbol)]
-            return q in self.F
+            if current_state not in self.F:
+                print(f"Final state: {current_state}. String accepted.")
+                return True
+            else:
+                print(f"Final state: {current_state}. String rejected.")
+                return False
         elif self.type == "NFA":
-            current_states = self.epsilonClosures(self.q0)
+            current_states = self.epsilonClosures(frozenset(self.q0) if isinstance(self.q0, list) else self.q0)
+            print(f"Initial epsilon-closure: {current_states}")
             for symbol in word:
+                print(f"Processing symbol: {symbol}")
                 next_states = set()
                 for state in current_states:
                     if (state, symbol) in self.delta:
-                        next_states.update(self.delta[(state, symbol)])
+                        transitions = self.delta[(state, symbol)]
+                        print(f"Transition: {state} --{symbol}--> {transitions}")
+                        next_states.update(transitions)
                 current_states = set()
                 for state in next_states:
-                    current_states.update(self.epsilonClosures(state))
-            return any(state in self.F for state in current_states)
+                    closures = self.epsilonClosures(state)
+                    print(f"Epsilon-closure of {state}: {closures}")
+                    current_states.update(closures)
+            if any(state in self.F for state in current_states):
+                print(f"Final states: {current_states}. String accepted.")
+                return True
+            else:
+                print(f"Final states: {current_states}. String rejected.")
+                return False
         else:
             raise ValueError("testString method is only applicable for DFA and NFA")
 
-    def wordGenerator(self, length):
-        if self.type == "DFA":
-            def generateWords(length, currentWord, currentState):
-                if length == 0:
-                    if currentState in self.F:
-                        return [currentWord]
-                    else:
-                        return []
-                words = []
-                for symbol in self.X:
-                    if (currentState, symbol) in self.delta:
-                        nextState = self.delta[(currentState, symbol)]
-                        words.extend(generateWords(length - 1, currentWord + symbol, nextState))
-                return words
 
-            return generateWords(length, "", self.q0)
-        else:
+
+    def wordGenerator(self, length):
+        if self.type != "DFA":
             raise ValueError("wordGenerator method is only applicable for DFA")
+
+        def generateWords(length: int, currentWord: str, currentState) -> list:
+            if length == 0:
+                if currentState in self.F:
+                    return [currentWord]
+                else:
+                    return []
+            words = []
+            for symbol in self.X:
+                if (currentState, symbol) in self.delta:
+                    nextState = self.delta[(currentState, symbol)]
+                    words.extend(generateWords(length - 1, currentWord + symbol, nextState))
+            return words
+
+        # Handle initial state and transitions consistently
+        initial_state = frozenset(self.q0) if isinstance(self.q0, set) else self.q0
+        self.delta = {(frozenset(k[0]) if isinstance(k[0], set) else k[0], k[1]): frozenset(v) if isinstance(v, set) else v for k, v in self.delta.items()}
+        self.q0 = initial_state
+        self.F = {frozenset(state) if isinstance(state, set) else state for state in self.F}
+        
+        # Generate words of the given length
+        words_of_given_length = generateWords(length, "", initial_state)
+        
+        return words_of_given_length
+
+
+
 
     def __repr__(self):
         if not self.delta:
@@ -245,7 +306,3 @@ class FA:
         fa_type = f"FA Type: {self.type}"
 
         return f"Transition Table:\n{header}\n{divider}\n" + "\n".join(rows) + f"\n{fa_type}"
-
-
-
-

@@ -15,22 +15,23 @@ def sub_menu(db_menu, FA, fa_id):
         print(FA.F)
         print("\nSub Menu")
         print("1. Convert FA (NFA to DFA)")
-        print("2. Minimize DFA")
+        print("2. Minimize DFA (Unhashable type error)")
         print("3. Complement DFA")
         print("4. Test String")
-        print("5. Generate Word")
+        print("5. Generate Word (Unhashable type error)")
         print("6. Edit FA")
         print("7. Exit to main menu")
 
         choice = input("Enter your choice: ")
 
         if choice == '1':
-            NFA = FA.convertNFAtoDFA()
-            print(NFA)
+            converted_state, converted_symbol, converted_delta, converted_start, converted_final = FA.convertNFAtoDFA()
+            NFA = fa.FA(converted_state, converted_symbol, converted_delta, converted_start, converted_final)
+            print(NFA)  
         elif choice == '2':
-            DFA = FA
-            DFA.minimize()
-            print(DFA)
+            minimized_state, minimized_symbol, minimized_delta, minimized_start, minimized_final = FA.minimize()
+            minimizedDFA = fa.FA(minimized_state, minimized_symbol, minimized_delta, minimized_start, minimized_final)
+            print(minimizedDFA)
         elif choice == '3':
             FA.complement()
             print(FA)
@@ -42,7 +43,10 @@ def sub_menu(db_menu, FA, fa_id):
             else:
                 print(f"'{input_string}' is rejected.")
         elif choice == '5':
-            FA.wordGenerator()
+            length = int(input("Enter length of word to generate: "))
+            word = FA.wordGenerator(length)
+            print(word)
+
         elif choice == '6':
             print("Edit FA")
             print("1. Add transition")
@@ -121,7 +125,7 @@ def main_menu():
                 print("Select FA")
                 count = 1
                 for i in FA_List:
-                    print(f"{count}. {i['description']}")
+                    print(f"{count}. ({i['type']}) {i['description']}")
                     count += 1
                 choice = int(input("Enter your choice: "))
                 fa_data = db_menu.get_fa(choice)
