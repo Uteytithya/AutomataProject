@@ -20,10 +20,6 @@ class Database:
         try:
             cursor = self.conn.cursor()
 
-            # Validate start_state and final_state before insertion
-            if start_state is None or final_state is None or start_state not in states or final_state not in states or transitions is None:
-                raise ValueError("Invalid start_state or final_state or transitions. Please check your input.")
-
             # Serialize lists to JSON strings
             states_json = json.dumps(states)
             symbols_json = json.dumps(symbols)
@@ -52,46 +48,47 @@ class Database:
         try:
             cursor = self.conn.cursor()
 
-            # Delete from `fa` table
-            cursor.execute("DELETE FROM fa WHERE id = %s", (fa_id,))
-
-            # Delete related entries from other tables (adjust according to your schema)
-            cursor.execute("DELETE FROM state_list WHERE fa_id = %s", (fa_id,))
-            cursor.execute("DELETE FROM symbol_list WHERE fa_id = %s", (fa_id,))
-            cursor.execute("DELETE FROM transition_list WHERE fa_id = %s", (fa_id,))
+            # Execute the delete query with fa_id as a parameter
+            cursor.execute("DELETE FROM fa_backup WHERE id = %s", (fa_id,))
 
             # Commit the transaction
             self.conn.commit()
 
-        except Error as e:
-            print(f"Error: {e}")
+            print(f"FA configuration with ID {fa_id} deleted successfully.")
+
+        except mysql.connector.Error as e:
+            print(f"Error deleting FA configuration: {e}")
             self.conn.rollback()
+
+        finally:
+            cursor.close()
 
     def update_fa(self, fa_id, type, description, start_state, final_state):
         try:
             cursor = self.conn.cursor()
-            
-            # # Get the ID of the start state
-            # cursor.execute("SELECT id FROM start_state WHERE name = %s", (start_state,))
-            # start_state_id = cursor.fetchone()[0]
 
-            # # Get the ID of the final state
-            # cursor.execute("SELECT id FROM final_state WHERE name = %s", (final_state,))
-            # final_state_id = cursor.fetchone()[0]
-
-            # Update `fa` table
-            cursor.execute("""
-                UPDATE fa
-                SET type = %s, description = %s, start_state_id = %s, final_state_id = %s
+            # Construct the SQL update query
+            update_query = """
+                UPDATE fa_backup
+                SET type = %s, description = %s, start_state = %s, final_state = %s
                 WHERE id = %s
-            """, (type, description, start_state, final_state, fa_id))
+            """
+
+            # Execute the update query with parameters
+            cursor.execute(update_query, (type, description, json.dumps(start_state), json.dumps(final_state), fa_id))
 
             # Commit the transaction
             self.conn.commit()
 
-        except Error as e:
-            print(f"Error: {e}")
+            print(f"FA configuration with ID {fa_id} updated successfully.")
+
+        except mysql.connector.Error as e:
+            print(f"Error updating FA configuration: {e}")
             self.conn.rollback()
+
+        finally:
+            cursor.close()
+
 
     def get_fa(self, fa_id):
         try:
@@ -120,7 +117,7 @@ class Database:
                 # Format the data as requested
                 Q = set(states)
                 X = set(symbols)
-                q0 = start_state
+                q0 = set(start_state)
                 F = set(final_state if isinstance(final_state, list) else [final_state])
 
                 formatted_data = {
