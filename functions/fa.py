@@ -1,4 +1,5 @@
 from dataStructure import state
+from collections import deque
 
 class FA:
     # Q = set of State objects, X = set of symbols, delta = transition dictionary { (State, symbol) : State }
@@ -9,28 +10,25 @@ class FA:
         self.delta = self.convert_delta(delta)
         self.q0 = q0
         self.F = F
-        self.type = "DFA" if self.isDFA() else "NFA"
+        if self.isDFA():
+            self.type = "DFA"
+        else:
+            self.type = "NFA"
     
 
     def convert_delta(self, delta_list):
         delta_dict = {}
         for (start, symbol, end) in delta_list:
-            if (start, symbol) not in delta_dict:
-                delta_dict[(start, symbol)] = {end}
-            else:
-                delta_dict[(start, symbol)].add(end)
+            delta_dict[(start, symbol)] = end
         return delta_dict
 
     def isDFA(self):
         for state in self.Q:
             for symbol in self.X:
-                # Check if there's no transition for a symbol from a state
                 if (state, symbol) not in self.delta:
                     continue
-                # Check if there's more than one transition for a symbol from a state
-                if len(self.delta[(state, symbol)]) > 1:
+                if len(self.delta[(state, symbol)]) != 1:
                     return False
-        # Check for epsilon transitions
         for (state, symbol) in self.delta:
             if symbol == "":
                 return False
@@ -55,7 +53,6 @@ class FA:
         if self.type != "NFA":
             raise ValueError("convertNFAtoDFA method is only applicable for NFA")
 
-        # Start with the epsilon closure of the NFA's start state
         initialState = frozenset(self.epsilonClosures(self.q0))
         dfa_states = {initialState}
         unprocessed_states = [initialState]
@@ -65,108 +62,78 @@ class FA:
 
         while unprocessed_states:
             current = unprocessed_states.pop()
-            
-            # If any NFA state in the current DFA state is an accept state, mark this DFA state as an accept state
             if any(state in self.F for state in current):
                 dfa_accept_states.add(current)
-
-            # Process each input symbol (excluding epsilon)
             for symbol in self.X:
                 if symbol == "":
                     continue
-                
                 new_state = set()
                 for state in current:
                     if (state, symbol) in self.delta:
                         for target in self.delta[(state, symbol)]:
                             new_state.update(self.epsilonClosures(target))
-                
-                new_state = frozenset(new_state)  # Convert the new state to a frozenset
+                new_state = frozenset(new_state)
                 if new_state not in dfa_states:
                     dfa_states.add(new_state)
                     unprocessed_states.append(new_state)
-                
                 dfa_delta[(tuple(current), symbol)] = new_state
 
-        # Convert DFA components to the required format
         dfa_states_list = sorted({tuple(state) for state in dfa_states}, key=len)
         dfa_delta_list = sorted([(tuple(state), symbol, tuple(target)) for (state, symbol), target in dfa_delta.items()], key=lambda x: (len(x[0]), x[1], len(x[2])))
         dfa_accept_states_list = sorted({tuple(state) for state in dfa_accept_states}, key=len)
 
         return FA(dfa_states_list, self.X, dfa_delta_list, tuple(dfa_start_state), dfa_accept_states_list)
 
-    def minimizeDFA(self):
-        if self.type != "DFA":
-            raise ValueError("minimizeDFA method is only applicable for DFA")
-
-        # Step 1: Remove non-accessible states
-        accessible_states = set()
-        stack = [self.q0]
-        while stack:
-            state = stack.pop()
-            if state not in accessible_states:
-                accessible_states.add(state)
-                for symbol in self.X:
-                    if (state, symbol) in self.delta:
-                        stack.extend(self.delta[(state, symbol)])
-        accessible_states &= self.Q
-
-        # Step 2: Mark distinguishable pairs of states
-        distinguishable = set()
-        for p in accessible_states:
-            for q in accessible_states:
-                if (p in self.F and q not in self.F) or (p not in self.F and q in self.F):
-                    distinguishable.add((p, q))
-                    distinguishable.add((q, p))
-
-        while True:
-            new_distinguishable = set()
-            for p in accessible_states:
-                for q in accessible_states:
-                    if (p, q) not in distinguishable:
-                        for symbol in self.X:
-                            if (self.delta.get((p, symbol), {None}) - self.delta.get((q, symbol), {None})) or (self.delta.get((q, symbol), {None}) - self.delta.get((p, symbol), {None})):
-                                if (self.delta.get((p, symbol), {None}).pop(), self.delta.get((q, symbol), {None}).pop()) in distinguishable or (self.delta.get((q, symbol), {None}).pop(), self.delta.get((p, symbol), {None}).pop()) in distinguishable:
-                                    new_distinguishable.add((p, q))
-                                    new_distinguishable.add((q, p))
-            if not new_distinguishable:
-                break
-            distinguishable |= new_distinguishable
-
-        # Step 3: Construct the minimized DFA
-        equivalence_classes = {}
-        for state in accessible_states:
-            for cls in equivalence_classes.values():
-                if all((state, other) not in distinguishable and (other, state) not in distinguishable for other in cls):
-                    cls.add(state)
-                    break
-            else:
-                equivalence_classes[state] = {state}
-
-        minimized_states = set(frozenset(cls) for cls in equivalence_classes.values())
-        minimized_start_state = next(cls for cls in minimized_states if self.q0 in cls)
-        minimized_final_states = {cls for cls in minimized_states if cls & self.F}
-        minimized_delta = {}
-
-        for cls in minimized_states:
-            representative = next(iter(cls))
-            for symbol in self.X:
-                if (representative, symbol) in self.delta:
-                    target = next(iter(self.delta[(representative, symbol)]))
-                    for target_cls in minimized_states:
-                        if target in target_cls:
-                            minimized_delta[(cls, symbol)] = target_cls
-                            break
-
-        # Convert minimized DFA components to the required format
-        minimized_states_list = sorted({tuple(state) for state in minimized_states}, key=len)
-        minimized_delta_list = sorted([(tuple(state), symbol, tuple(target)) for (state, symbol), target in minimized_delta.items()], key=lambda x: (len(x[0]), x[1], len(x[2])))
-        minimized_final_states_list = sorted({tuple(state) for state in minimized_final_states}, key=len)
-
-        return FA(minimized_states_list, self.X, minimized_delta_list, tuple(minimized_start_state), minimized_final_states_list)
-
-
     
+    def minimize(self):
+        P = {frozenset(self.F), frozenset(self.Q - self.F)}
+        W = [frozenset(self.F)] if len(frozenset(self.F)) <= len(frozenset(self.Q - self.F)) else [frozenset(self.Q - self.F)]
+        
+        while W:
+            A = W.pop()
+            for c in self.X:
+                X = frozenset({q for q in self.Q if (q, c) in self.delta and self.delta[(q, c)] in A})
+                new_P = set()
+                for Y in P:
+                    intersection = X & Y
+                    difference = Y - X
+                    if intersection and difference:
+                        new_P.add(intersection)
+                        new_P.add(difference)
+                        if Y in W:
+                            W.remove(Y)
+                            W.append(intersection)
+                            W.append(difference)
+                        else:
+                            if len(intersection) <= len(difference):
+                                W.append(intersection)
+                            else:
+                                W.append(difference)
+                    else:
+                        new_P.add(Y)
+                P = new_P
+
+        # Create new state names with old states included
+        new_states = {state: f"S{index}({','.join(map(str, state))})" for index, state in enumerate(P)}
+        state_mapping = {q: new_states[state] for state in new_states for q in state}
+        
+        # Create new delta function
+        new_delta = {}
+        for (start, symbol), end in self.delta.items():
+            new_start = state_mapping[start]
+            new_end = state_mapping[end]
+            new_delta[(new_start, symbol)] = new_end
+
+        # Update initial state and final states
+        new_q0 = state_mapping[self.q0] if self.q0 in state_mapping else None
+        new_F = {state_mapping[f] for f in self.F if f in state_mapping}
+
+        # Update DFA components
+        self.Q = set(new_states.values())
+        self.delta = new_delta
+        self.q0 = new_q0
+        self.F = new_F
+
     def complement(self):
         if self.type != "DFA":
             raise ValueError("complement method is only applicable for DFA")
@@ -186,28 +153,6 @@ class FA:
         else:
             raise ValueError("testString method is only applicable for DFA")
             
-    def union(self, fa2):
-        # Union of two FA
-        if self.X != fa2.X:
-            raise ValueError("Alphabets of the two FAs are not the same")
-        new_states = self.Q.union(fa2.Q)
-        new_delta = self.delta.copy()
-        new_delta.update(fa2.delta)
-        new_start_state = state("q0")
-        new_final_states = self.F.union(fa2.F)
-        return FA(new_states, self.X, new_delta, new_start_state, new_final_states)
-    
-    def intersection(self, fa2):
-        # Intersection of two FA
-        if self.X != fa2.X:
-            raise ValueError("Alphabets of the two FAs are not the same")
-        new_states = self.Q.intersection(fa2.Q)
-        new_delta = {key: value for key, value in self.delta.items() if key in new_states}
-        new_delta.update({key: value for key, value in fa2.delta.items() if key in new_states})
-        new_start_state = state("q0")
-        new_final_states = self.F.intersection(fa2.F)
-        return FA(new_states, self.X, new_delta, new_start_state, new_final_states)
-    
     def wordGenerator(self, length):
         if self.type == "DFA":
             def generateWords(length, currentWord, currentState):
