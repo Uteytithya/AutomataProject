@@ -5,12 +5,14 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-def sub_menu(db_menu, FA):
+def sub_menu(db_menu, FA, fa_id):
     while True:
         print(FA)
         print(FA.Q)
-        print(FA.q0)
+        print(FA.X)
         print(FA.delta)
+        print(FA.q0)
+        print(FA.F)
         print("\nSub Menu")
         print("1. Convert FA (NFA to DFA)")
         print("2. Minimize DFA")
@@ -18,8 +20,7 @@ def sub_menu(db_menu, FA):
         print("4. Test String")
         print("5. Generate Word")
         print("6. Edit FA")
-        print("7. Delete FA")
-        print("8. Exit to main menu")
+        print("7. Exit to main menu")
 
         choice = input("Enter your choice: ")
 
@@ -43,11 +44,41 @@ def sub_menu(db_menu, FA):
         elif choice == '5':
             FA.wordGenerator()
         elif choice == '6':
-            db_menu.update_fa(FA, FA.id)
+            print("Edit FA")
+            print("1. Add transition")
+            print("2. Add start state")
+            print("3. Add final state")
+            print("4. Update FA")
+            print("5. Delete FA")
+            print("6. Exit to Sub menu")
+            choice = input("Enter your choice: ")
+            if choice == '1':
+                delta_list = []
+                print("Enter transitions (q, x, p)\n")
+                transitions = input("Enter transition or leave the second character empty for empty transition: ")
+                FA.delta.append(tuple(fa.convert_delta(transitions.split(','))))
+            elif choice == '2':
+                start_state = input("Enter start state: ")
+                FA.q0.append(start_state)
+            elif choice == '3':
+                FA.F.append(input("Enter final state: "))
+            elif choice == '4':
+                print("Update FA")
+                print("Enter transitions (q, x, p)\n")
+                transitions = input("Enter transition or leave the second character empty for empty transition: ")
+                FA.delta.append(tuple(fa.convert_delta(transitions.split(','))))
+                start_state = input("Enter start state: ")
+                FA.q0.append(start_state)
+                FA.F.append(input("Enter final state: "))
+            elif choice == '5':
+                db_menu.delete_fa(fa_id)
+                return
+            elif choice == '6':
+                continue
+            else:
+                print("Invalid choice. Please try again.")
+            db_menu.update_fa(FA, fa_id)
         elif choice == '7':
-            db_menu.delete_fa(FA)
-            return
-        elif choice == '8':
             return
         else:
             print("Invalid choice. Please try again.")
@@ -71,7 +102,7 @@ def main_menu():
             delta = []
             print("Enter transitions (q, x, p) or 'done' to finish.")
             while True:
-                transition = input("Enter transition or Press e to do empty transition: ")
+                transition = input("Enter transition or leave the second character empty for empty transition: ")
                 if transition == 'done':
                     break
                 delta.append(tuple(transition.split(',')))
@@ -102,7 +133,7 @@ def main_menu():
                     F = fa_data["F"]
 
                     fa_object = fa.FA(Q, X, delta, q0, F)
-                sub_menu(db_menu, fa_object)
+                sub_menu(db_menu, fa_object, fa_data["id"])
 
         elif choice == '3': 
             print("Exiting.")

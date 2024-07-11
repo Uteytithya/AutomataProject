@@ -63,19 +63,25 @@ class Database:
         finally:
             cursor.close()
 
-    def update_fa(self, fa_id, type, description, start_state, final_state):
+    def update_fa(self, FA, fa_id):
         try:
             cursor = self.conn.cursor()
 
-            # Construct the SQL update query
-            update_query = """
-                UPDATE fa_backup
-                SET type = %s, description = %s, start_state = %s, final_state = %s
-                WHERE id = %s
-            """
+            # Serialize lists to JSON strings
+            states_json = json.dumps(FA.Q)
+            symbols_json = json.dumps(FA.X)
+            transitions_json = json.dumps(FA.delta)
+            start_state_json = json.dumps(FA.q0)
+            final_state_json = json.dumps(FA.F)
 
-            # Execute the update query with parameters
-            cursor.execute(update_query, (type, description, json.dumps(start_state), json.dumps(final_state), fa_id))
+            cursor.execute(
+                """
+                UPDATE fa_backup
+                SET type = %s, description = %s, start_state = %s, final_state = %s, state = %s, symbol = %s, transition = %s
+                WHERE id = %s
+                """,
+                (FA.type, FA.description, start_state_json, final_state_json, states_json, symbols_json, transitions_json, fa_id)
+            )
 
             # Commit the transaction
             self.conn.commit()
@@ -121,6 +127,7 @@ class Database:
                 F = set(final_state if isinstance(final_state, list) else [final_state])
 
                 formatted_data = {
+                    "id": fa_id,
                     "Q": Q,
                     "X": X,
                     "delta": delta,

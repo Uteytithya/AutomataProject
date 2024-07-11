@@ -43,55 +43,61 @@ class FA:
 
         return True
 
-    def epsilonClosures(self, state):
-        # Initialize the closure with the state itself
-        closure = set([state])
-        stack = [state]
+    def epsilonClosures(self, states):
+        closure = set(states)
+        stack = list(states)
 
         while stack:
             current_state = stack.pop()
-            # If there are epsilon transitions from the current state
             if (current_state, "") in self.delta:
                 for next_state in self.delta[(current_state, "")]:
                     if next_state not in closure:
                         closure.add(next_state)
                         stack.append(next_state)
-        return closure
+        return frozenset(closure)
 
     def convertNFAtoDFA(self):
         if self.type != "NFA":
             raise ValueError("convertNFAtoDFA method is only applicable for NFA")
 
-        initialState = frozenset(self.epsilonClosures(self.q0))
-        dfa_states = {initialState}
-        unprocessed_states = [initialState]
+        initial_closure = self.epsilonClosures({self.q0})
+        initial_state = frozenset(initial_closure)
+
+        dfa_states = {initial_state}
+        unprocessed_states = [initial_state]
         dfa_delta = {}
-        dfa_start_state = initialState
+        dfa_start_state = initial_state
         dfa_accept_states = set()
 
         while unprocessed_states:
             current = unprocessed_states.pop()
+
             if any(state in self.F for state in current):
                 dfa_accept_states.add(current)
+
             for symbol in self.X:
                 if symbol == "":
                     continue
+
                 new_state = set()
                 for state in current:
                     if (state, symbol) in self.delta:
-                        for target in self.delta[(state, symbol)]:
-                            new_state.update(self.epsilonClosures(target))
+                        new_state.update(self.epsilonClosures(self.delta[(state, symbol)]))
+
                 new_state = frozenset(new_state)
+
                 if new_state not in dfa_states:
                     dfa_states.add(new_state)
                     unprocessed_states.append(new_state)
-                dfa_delta[(tuple(current), symbol)] = new_state
 
-        dfa_states_list = sorted({tuple(state) for state in dfa_states}, key=len)
-        dfa_delta_list = sorted([(tuple(state), symbol, tuple(target)) for (state, symbol), target in dfa_delta.items()], key=lambda x: (len(x[0]), x[1], len(x[2])))
-        dfa_accept_states_list = sorted({tuple(state) for state in dfa_accept_states}, key=len)
+                dfa_delta[(current, symbol)] = new_state
 
-        return FA(dfa_states_list, self.X, dfa_delta_list, tuple(dfa_start_state), dfa_accept_states_list)
+        dfa_states_list = list(dfa_states)
+        dfa_delta_list = [((state,), symbol, (target,)) for (state, symbol), target in dfa_delta.items()]
+        dfa_accept_states_list = list(dfa_accept_states)
+
+        dfa_fa = FA(dfa_states_list, self.X, dfa_delta_list, dfa_start_state, dfa_accept_states_list)
+        return dfa_fa
 
     def minimize(self):
         P = {frozenset(self.F), frozenset(self.Q - self.F)}
@@ -212,13 +218,13 @@ class FA:
         sorted_states = sorted(self.Q, key=lambda state: (state != self.q0, state))  # Sort with q0 first
         for state in sorted_states:
             state_str = " ".join(str(s) for s in state) if isinstance(state, frozenset) else str(state)
-            
-            # Debugging output
-            print(f"Comparing state: {state} ({type(state)}) with start state: {self.q0} ({type(self.q0)})")
-            print(f"Comparing state: {state} ({type(state)}) with final states: {self.F} ({type(self.F)})")
-            
-            state_marker = "→" if state == self.q0 else " "
-            print(state_marker)
+
+            for i in self.q0:
+                if state == i:
+                    state_marker = "→"
+                else:
+                    state_marker = " "
+
             state_marker = "*" + state_marker if state in self.F else " " + state_marker
             row = f"{state_marker} {state_str:^{state_width - 2}} |"
             
